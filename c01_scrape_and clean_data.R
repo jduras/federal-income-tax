@@ -20,7 +20,7 @@ cpinsa <-
     mutate(year = year(date)) %>%
     select(-date) %>%
     group_by(year) %>%
-    summarise_all(mean) %>%
+    summarise(cpi = mean(price)) %>%
     ungroup()
 
 # get data on federal income tax brackets from https://www.tax-brackets.org/federaltaxtable/
@@ -50,29 +50,28 @@ federal_tax_brackets <-
            # add missing tables for Married Filing Jointly for year 1949-1954: same tax rates as Married Filing Separately by bracket cutoffs double
            # in addition fix mistakes for years 1967, 2011, 2012
            brackets = brackets %>%
-                           modify_if(taxyear %in% c(1949:1954, 1967), ~update_list(.x, married_filing_jointly = ~married_filing_separately %>%
-                                                                                    mutate(tax_bracket = 2*tax_bracket))) %>%
-                           modify_if(taxyear %in% c(2011:2012), ~update_list(.x, married_filing_jointly = ~married_filing_jointly %>%
-                                                                                    mutate(tax_rate = if_else(tax_bracket == 0, 10, tax_rate))))
+                           modify_if(taxyear %in% c(1949:1954, 1967),
+                                     ~update_list(.x, married_filing_jointly = ~married_filing_separately %>%
+                                                      mutate(tax_bracket = 2*tax_bracket))) %>%
+                           modify_if(taxyear %in% c(2011:2012),
+                                     ~update_list(.x, married_filing_jointly = ~married_filing_jointly %>%
+                                                      mutate(tax_rate = if_else(tax_bracket == 0, 10, tax_rate))))
            )
 
 print("Done. All your base are belong to us.")
 
 federal_tax_brackets %>%
-    pluck("brackets") %>%
+    pull("brackets") %>%
     str(list.len = 3, max.level = 2)
 
 federal_tax_brackets %>%
-    pluck("brackets") %>%
+    pull("brackets") %>%
     jsonedit(mode = "view")
-
-save(federal_tax_brackets, cpinsa, file = "us_tax_brackets.Rdata")
-# load("us_tax_brackets.Rdata")
 
 # rearrange tax brackets data in a way that can be easily used by the shiny app
 federal_tax_brackets_clean <-
     federal_tax_brackets %>%
-    pluck("brackets") %>%
+    pull("brackets") %>%
     transpose() %>%
     map( ~.x %>%
              bind_rows(.id = "tax_year") %>%
